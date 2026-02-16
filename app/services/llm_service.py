@@ -1,7 +1,7 @@
 """
-Service for generating research briefs using OpenAI-compatible APIs (like Groq)
+Service for generating research briefs using Groq
 """
-import openai
+import groq
 import os
 import logging
 import json
@@ -12,20 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """Service for generating research briefs using OpenAI/Groq"""
+    """Service for generating research briefs using Groq"""
     
     def __init__(self):
-        """Initialize LLM service with API key and configuration"""
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            raise ValueError("OPENAI_API_KEY environment variable is not set")
+        """Initialize LLM service with Groq API key"""
+        self.api_key = os.getenv("GROQ_API_KEY")
+        if not self.api_key:
+            raise ValueError("GROQ_API_KEY environment variable is not set")
         
-        # Groq/OpenRouter/Other compatibility
-        base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-        self.model = os.getenv("LLM_MODEL", "gpt-4o-mini")
-        
-        openai.api_key = api_key
-        self.client = openai.OpenAI(api_key=api_key, base_url=base_url)
+        self.model = os.getenv("LLM_MODEL", "llama-3.3-70b-versatile")
+        self.client = groq.Groq(api_key=self.api_key)
     
     def _build_prompt(self, articles: List[Dict[str, str]]) -> str:
         """
@@ -144,7 +140,6 @@ Rules:
                 response = self.client.chat.completions.create(
                     model=self.model,
                     messages=messages,
-                    # Note: Not all providers support json_object mode, so we rely on strict prompting
                     temperature=0.1,
                     max_tokens=3000
                 )
@@ -168,12 +163,13 @@ Rules:
                     raise Exception(error_msg)
 
     def validate_api_key(self) -> bool:
-        """Validate LLM configuration with a lightweight request"""
+        """Validate Groq configuration with a lightweight request"""
         try:
+            # Listing models is a reliable way to check API key validity
             self.client.models.list()
             return True
         except Exception as e:
-            logger.error(f"LLM configuration validation failed: {str(e)}")
+            logger.error(f"Groq API key validation failed: {str(e)}")
             return False
 
 
