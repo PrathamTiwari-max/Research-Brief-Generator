@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Brief - {{ brief.id[:8] }}</title>
+    <meta name="description" content="View research brief generated from multiple sources">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- Header -->
+        <header class="mb-8 fade-in">
+            <a href="/" class="inline-flex items-center text-indigo-600 hover:text-indigo-800 mb-4">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+                </svg>
+                Back to Home
+            </a>
+            <h1 class="text-4xl font-bold text-indigo-900">Research Brief</h1>
+            <p class="text-gray-600 mt-2">Generated on {{ brief.created_at.strftime('%B %d, %Y at %H:%M') }}</p>
+        </header>
+
+        {% if brief.status == 'processing' %}
+        <!-- Processing State -->
+        <div class="bg-white rounded-2xl shadow-xl p-12 text-center fade-in">
+            <div class="spinner mx-auto mb-6"></div>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-3">Processing Your Research Brief</h2>
+            <p class="text-gray-600 mb-6">
+                Analyzing {{ brief.raw_urls|length }} URL(s)... This may take 30-60 seconds.
+            </p>
+            <p class="text-sm text-gray-500">This page will auto-refresh when complete.</p>
+        </div>
+
+        <script>
+            // Auto-refresh every 3 seconds while processing
+            setTimeout(() => {
+                location.reload();
+            }, 3000);
+        </script>
+
+        {% elif brief.status == 'failed' %}
+        <!-- Error State -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 fade-in">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                    <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </div>
+                <h2 class="text-2xl font-semibold text-gray-800 mb-3">Processing Failed</h2>
+                <p class="text-gray-600 mb-4">We encountered an error while generating your research brief.</p>
+
+                {% if brief.error_message %}
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+                    <p class="text-sm font-medium text-red-800 mb-1">Error Details:</p>
+                    <p class="text-sm text-red-700">{{ brief.error_message }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mt-6">
+                <h3 class="font-semibold text-gray-800 mb-2">Submitted URLs:</h3>
+                <ul class="space-y-2">
+                    {% for url in brief.raw_urls %}
+                    <li class="text-sm text-gray-600 break-all">{{ url }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        {% elif brief.status == 'completed' and brief.result %}
+        <!-- Completed State -->
+        <div class="space-y-6 fade-in">
+            <!-- Summary Section -->
+            <section class="bg-white rounded-2xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-4 flex items-center">
+                    <span class="text-3xl mr-3">📝</span>
+                    Summary
+                </h2>
+                <p class="text-gray-700 leading-relaxed">{{ brief.result.summary }}</p>
+            </section>
+
+            <!-- Key Points Section -->
+            <section class="bg-white rounded-2xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
+                    <span class="text-3xl mr-3">🔑</span>
+                    Key Points
+                </h2>
+                <div class="space-y-6">
+                    {% for point in brief.result.key_points %}
+                    <div class="border-l-4 border-indigo-500 pl-4 py-2">
+                        <p class="text-gray-800 font-medium mb-2">{{ point.point }}</p>
+                        <blockquote class="text-sm text-gray-600 italic mb-2 bg-gray-50 p-3 rounded">
+                            "{{ point.source_snippet }}"
+                        </blockquote>
+                        <a href="{{ point.source_url }}" target="_blank"
+                            class="text-sm text-indigo-600 hover:text-indigo-800 break-all">
+                            📎 {{ point.source_url }}
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Conflicting Claims Section -->
+            <section class="bg-white rounded-2xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
+                    <span class="text-3xl mr-3">⚠️</span>
+                    Conflicting Claims Analysis
+                </h2>
+                {% if brief.result.conflicting_claims and brief.result.conflicting_claims|length > 0 %}
+                <div class="space-y-4">
+                    {% for conflict in brief.result.conflicting_claims %}
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-5">
+                        <p class="text-gray-800 font-bold mb-4">{{ conflict.claim }}</p>
+                        <div class="text-sm">
+                            <p class="text-gray-600 font-semibold mb-3">Competing Sources:</p>
+                            <ul class="space-y-3">
+                                {% for source in conflict.sources %}
+                                <li
+                                    class="flex items-center text-indigo-600 hover:text-indigo-800 break-all transition">
+                                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                        <path
+                                            d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z">
+                                        </path>
+                                        <path
+                                            d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 100-2H5z">
+                                        </path>
+                                    </svg>
+                                    {% if source is mapping %}
+                                    <div class="flex flex-col">
+                                        <a href="{{ source.url }}" target="_blank"
+                                            class="font-medium underline decoration-indigo-200">{{ source.url }}</a>
+                                        <span
+                                            class="text-xs text-yellow-700 bg-yellow-100 px-2 py-0.5 rounded-full mt-1 w-fit font-bold uppercase tracking-wider">
+                                            Position: {{ source.position }}
+                                        </span>
+                                    </div>
+                                    {% else %}
+                                    <a href="{{ source }}" target="_blank"
+                                        class="font-medium underline decoration-indigo-200">{{ source }}</a>
+                                    {% endif %}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-6 bg-gray-50 rounded-xl border border-dashed border-gray-300">
+                    <p class="text-gray-500 font-medium">No conflicting claims identified across sources.</p>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Verification Checklist Section -->
+            {% if brief.result.verification_checklist %}
+            <section class="bg-white rounded-2xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
+                    <span class="text-3xl mr-3">✅</span>
+                    Verification Checklist
+                </h2>
+                <ul class="space-y-3">
+                    {% for item in brief.result.verification_checklist %}
+                    <li class="flex items-start">
+                        <span class="inline-block w-6 h-6 bg-indigo-100 rounded mr-3 flex-shrink-0 mt-0.5">
+                            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2">
+                                </path>
+                            </svg>
+                        </span>
+                        <span class="text-gray-700">{{ item }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            <!-- Sources Section -->
+            <section class="bg-white rounded-2xl shadow-xl p-8">
+                <h2 class="text-2xl font-bold text-indigo-900 mb-6 flex items-center">
+                    <span class="text-3xl mr-3">🔗</span>
+                    Sources Analyzed
+                </h2>
+                <ul class="space-y-2">
+                    {% for url in brief.raw_urls %}
+                    <li>
+                        <a href="{{ url }}" target="_blank"
+                            class="text-indigo-600 hover:text-indigo-800 break-all text-sm">
+                            {{ url }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+        </div>
+        {% endif %}
+    </div>
+</body>
+
+</html>

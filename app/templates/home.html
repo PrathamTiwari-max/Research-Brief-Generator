@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Brief from Links</title>
+    <meta name="description" content="Generate AI-powered research briefs from multiple URLs">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="text-center mb-12 fade-in">
+            <h1 class="text-5xl font-bold text-indigo-900 mb-3">📚 Research Brief Generator</h1>
+            <p class="text-lg text-gray-700">Transform multiple URLs into comprehensive research briefs using AI</p>
+        </header>
+
+        <!-- Main Form -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-12 fade-in">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Submit URLs for Analysis</h2>
+            <p class="text-gray-600 mb-6">
+                Paste 1-10 URLs (one per line) to generate a comprehensive research brief with summaries,
+                key points, conflicting claims, and verification checklists.
+            </p>
+
+            <form id="urlForm" class="space-y-4">
+                <div>
+                    <label for="urls" class="block text-sm font-medium text-gray-700 mb-2">
+                        URLs (1-10, one per line)
+                    </label>
+                    <textarea id="urls" name="urls" rows="8"
+                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                        placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                        required></textarea>
+                    <p id="urlCount" class="text-sm text-gray-500 mt-2">0 URLs</p>
+                </div>
+
+                <div id="errorMessage" class="hidden bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+                </div>
+
+                <button type="submit" id="submitBtn"
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200 transform hover:scale-105">
+                    Generate Research Brief
+                </button>
+            </form>
+
+            <!-- Loading State -->
+            <div id="loadingState" class="hidden text-center py-8">
+                <div class="spinner mx-auto mb-4"></div>
+                <p class="text-gray-700 font-medium">Processing your URLs...</p>
+                <p class="text-gray-500 text-sm mt-2">This may take 30-60 seconds</p>
+            </div>
+        </div>
+
+        <!-- Recent Briefs -->
+        {% if recent_briefs %}
+        <div class="bg-white rounded-2xl shadow-xl p-8 fade-in">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-6">📋 Recent Research Briefs</h2>
+            <div class="space-y-4">
+                {% for brief in recent_briefs %}
+                <a href="/brief/{{ brief.id }}"
+                    class="block p-4 border border-gray-200 rounded-lg hover:border-indigo-500 hover:shadow-md transition">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-2">
+                                {% if brief.status == 'completed' %}
+                                <span class="inline-block w-3 h-3 bg-green-500 rounded-full"></span>
+                                <span class="text-sm font-medium text-green-700">Completed</span>
+                                {% elif brief.status == 'processing' %}
+                                <span class="inline-block w-3 h-3 bg-yellow-500 rounded-full animate-pulse"></span>
+                                <span class="text-sm font-medium text-yellow-700">Processing</span>
+                                {% else %}
+                                <span class="inline-block w-3 h-3 bg-red-500 rounded-full"></span>
+                                <span class="text-sm font-medium text-red-700">Failed</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-gray-600 text-sm">
+                                {{ brief.raw_urls|length }} URL(s) •
+                                {{ brief.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </p>
+                        </div>
+                        <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7">
+                            </path>
+                        </svg>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <script>
+        const urlForm = document.getElementById('urlForm');
+        const urlsTextarea = document.getElementById('urls');
+        const urlCount = document.getElementById('urlCount');
+        const errorMessage = document.getElementById('errorMessage');
+        const submitBtn = document.getElementById('submitBtn');
+        const loadingState = document.getElementById('loadingState');
+
+        // Update URL count
+        urlsTextarea.addEventListener('input', () => {
+            const urls = urlsTextarea.value.trim().split('\n').filter(url => url.trim());
+            urlCount.textContent = `${urls.length} URL(s)`;
+
+            if (urls.length > 10) {
+                urlCount.classList.add('text-red-500');
+                urlCount.classList.remove('text-gray-500');
+            } else {
+                urlCount.classList.remove('text-red-500');
+                urlCount.classList.add('text-gray-500');
+            }
+        });
+
+        // Handle form submission
+        urlForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Hide error
+            errorMessage.classList.add('hidden');
+
+            // Get URLs
+            const urls = urlsTextarea.value.trim().split('\n')
+                .map(url => url.trim())
+                .filter(url => url);
+
+            // Validate
+            if (urls.length < 1) {
+                showError('Please enter at least 1 URL');
+                return;
+            }
+
+            if (urls.length > 10) {
+                showError('Maximum 10 URLs allowed');
+                return;
+            }
+
+            // Show loading
+            urlForm.classList.add('hidden');
+            loadingState.classList.remove('hidden');
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ urls })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to submit URLs');
+                }
+
+                const data = await response.json();
+
+                // Redirect to brief page
+                window.location.href = `/brief/${data.id}`;
+
+            } catch (error) {
+                urlForm.classList.remove('hidden');
+                loadingState.classList.add('hidden');
+                showError(error.message);
+            }
+        });
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+        }
+    </script>
+</body>
+
+</html>
